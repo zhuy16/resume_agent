@@ -1,5 +1,62 @@
 # CHANGELOG
 
+## [May 13, 2025] - Quality Control & Source Resume Validation
+
+### ✨ Critical Improvements
+- **Quality Control System**: Implemented comprehensive QC for source resume validation with scoring system
+- **Smart Fallback Mechanism**: Automatically falls back to 2nd/3rd best matches when primary source fails QC
+- **Resume Quality Criteria**: Validates minimum content length, proper sections (name, headers, bullets), and detects job descriptions
+- **Error Handling**: Graceful handling of missing directories and inaccessible source files
+- **Placeholder Prevention**: Eliminates `<UNKNOWN>` placeholders by ensuring proper source material
+- **QC Reporting**: Detailed QC feedback with scores and specific issue identification
+
+### 🔧 QC Features Added
+- **Content Validation**: Minimum 500 characters, proper section structure
+- **Job Description Detection**: Identifies and rejects JD files masquerading as resumes
+- **Placeholder Detection**: Flags `<UNKNOWN>`, TBD, and placeholder content
+- **Scoring System**: 0-1 quality score with pass/fail threshold (0.6)
+- **Fallback Strategy**: Tries multiple candidates, uses best available if all fail
+
+## [May 13, 2025] - Customer Support & Cover Letter Enhancement
+
+### ✨ Critical Improvements
+- **Customer Support Role Detection**: Automatically detects support/training roles and creates dedicated "Customer Support & Training" skills category
+- **Support-Focused Summary**: Reframes experience for customer-facing roles with emphasis on technical support and training
+- **Enhanced Cover Letters**: Role-specific cover letter generation with training/troubleshooting emphasis for support roles
+- **Spatial Biology Prioritization**: Smart portfolio selection prioritizes spatial transcriptomics projects for Bruker-type roles
+- **Training & Leadership Emphasis**: Enhanced bullet prompts to highlight workshops, community leadership, and training experience
+- **Company-Specific Enthusiasm**: Improved cover letter closing with genuine company mission focus
+
+### 🎯 Cover Letter Features Added
+- **Role Detection**: Automatically identifies customer support, technical, and spatial biology roles
+- **Training Bullet Prioritization**: For support roles, prioritizes NIH workshops, Community of Practice leadership
+- **Troubleshooting Emphasis**: Includes customer support and user guidance examples for support roles
+- **Enhanced Opening**: Company-specific observations with customer-facing collaboration framing
+- **Improved Closing**: Genuine enthusiasm for company mission and technology
+
+## [May 13, 2025] - Customer Support & Spatial Biology Enhancement
+
+### ✨ Critical Improvements
+- **Customer Support Role Detection**: Automatically detects support/training roles and creates dedicated "Customer Support & Training" skills category
+- **Support-Focused Summary**: Reframes experience for customer-facing roles with emphasis on technical support and training
+- **Spatial Biology Prioritization**: Smart portfolio selection prioritizes spatial transcriptomics projects for Bruker-type roles
+- **Training & Leadership Emphasis**: Enhanced bullet prompts to highlight workshops, community leadership, and training experience
+- **Multi-Keyword Detection**: System now detects MCP/agentic AI, spatial biology, AND customer support keywords for tailored content
+
+## [May 13, 2025] - MCP/Agentic AI Enhancement
+
+### ✨ Critical Improvements
+- **MCP/Agentic AI Keywords**: Added automatic detection and inclusion of MCP server development and agentic AI workflows in summary and skills sections
+- **Smart Portfolio Selection**: Prioritizes MCP-relevant projects (job-rag, linkedin-job-scout) when JD mentions agentic AI
+- **Pharma-Specific Language**: Enhanced bullet prompts to include GxP, regulatory, and compliance terminology
+- **JD-Aware Content Generation**: System now detects JD keywords and tailors content accordingly
+
+### 🎯 Key Features Added
+- **Automatic MCP Detection**: Scans JD for terms like "MCP", "agentic AI", "workflow orchestration"
+- **Dynamic Summary Generation**: Includes MCP/agentic AI expertise when relevant to role
+- **Intelligent Skills Categorization**: Creates dedicated "AI Tooling" category with MCP server development
+- **Portfolio Project Prioritization**: Reorders projects to highlight most relevant experience first
+
 ## [May 12, 2025] - Major Updates & Bug Fixes
 
 ### ✨ New Features

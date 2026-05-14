@@ -18,7 +18,9 @@ The previous `job_rag` project established a RAG pipeline that embedded past job
 ## Recent Updates (May 2025)
 
 ### ✅ Major Improvements
+- **Quality Control System**: Comprehensive source resume validation with smart fallback to better matches
 - **Enhanced Validation**: Added `ValidatorAgent` using Claude Haiku to cross-check all claims against source resume
+- **Customer Support Detection**: Automatic role detection for support/training positions with tailored content
 - **Portfolio Patch Integration**: Automatically enriches portfolio section from fallback resume when missing
 - **Consistent Formatting**: Fixed bullet styles, date formats, and company naming conventions
 - **Smart File Classification**: Improved detection of JD vs resume files with special case handling
@@ -33,10 +35,21 @@ The previous `job_rag` project established a RAG pipeline that embedded past job
 - **Portfolio Dashes**: Stripped leading dashes to ensure consistent bullet formatting
 
 ### 🚀 New Features
+- **Quality Control System**: Source resume validation with scoring and automatic fallback
+- **Customer Support Role Detection**: Automatic identification and tailoring for support positions
+- **Enhanced Cover Letters**: Role-specific generation with training emphasis
 - **Embedding Visualization**: Interactive UMAP map with domain/outcome coloring and final-round stars
 - **Supplemental Facts**: Pass portfolio patch content to validator to reduce false positives
 - **Page Break Handling**: Validator warnings moved to separate page to avoid formatting issues
 - **Progress Indicators**: Added console feedback for PDF processing and API calls
+
+### 🛡️ Quality Control System
+- **Source Validation**: Checks minimum content length, proper sections (name, headers, bullets)
+- **Job Description Detection**: Prevents using JD files as source material
+- **Smart Fallback**: Tries 2nd/3rd best matches when primary fails QC
+- **Placeholder Prevention**: Eliminates `<UNKNOWN>` placeholders through quality validation
+- **Error Handling**: Graceful handling of missing directories and inaccessible files
+- **QC Reporting**: Detailed feedback with scores and specific issue identification
 
 ---
 

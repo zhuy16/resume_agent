@@ -78,6 +78,12 @@ def classify_file(path: str) -> str:
     # Special case override for known JD files
     if "Bioinformatics Analyst III REMOTE Illinois.pdf" in name:
         return "job_description"
+    if "Applied Bioinformatics Engineer, Pipelines & AI in Boston" in name:
+        return "job_description"
+    if "Bruker Corporation _ Career _ Computational Biologist in Remote" in name:
+        return "job_description"
+    if "Job Application for Bioinformatics Engineer II" in name:
+        return "job_description"
     
     result = _classify_filename(name)
     if result:

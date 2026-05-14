@@ -105,8 +105,14 @@ BULLET QUALITY RULE — every bullet must tell a COMPLETE story in one sentence:
     "Designed and delivered 4 NIH-wide training workshops on single-cell genomics, 
     standardizing workflows across 250+ researchers"
   - SPATIAL BIOLOGY: Prioritize spatial transcriptomics, TCR detection, and patent work if in source
+  - CRITICAL: NEVER attribute portfolio projects (linkedin-job-scout, job-rag, scrna_longformer, python-ml-reps) 
+    to company experience sections. Portfolio projects belong ONLY in the PORTFOLIO PROJECTS section.
+  - CRITICAL: Personal projects using Claude API, LangChain, RAG, or job monitoring workflows 
+    are portfolio projects, NOT company work experience.
   - BAD (too terse): "Developed Nextflow pipeline for RNA-seq"
   - BAD (no impact): "Applied scVI to single-cell data"
+  - BAD (portfolio attribution): "Designed and implemented an end-to-end agentic AI system 
+    using Claude API, LangChain, and RAG to automate job monitoring workflows" (this is a portfolio project)
   - GOOD: "Engineered Nextflow/Docker RNA-seq pipeline to standardise somatic variant
     calling across 3 programmes, reducing analyst turnaround from 5 days to same-day"
   - GOOD: "Fine-tuned scGPT and scBERT foundation models for cell-type annotation,
@@ -215,6 +221,11 @@ CONTENT RULES:
   - Never open any sentence with "I" — restructure to lead with the role, company, or skill.
   - Banned phrases: "aligns perfectly", "I am very excited", "I am a perfect fit", "I believe",
     "I am passionate", "Looking forward to discussing", "thrilled", "ideal candidate".
+  - CRITICAL: Never claim a job title higher than what appears in source resume. 
+    If source shows "Senior Scientist", do NOT claim "Principal Scientist".
+  - CRITICAL: Never attribute portfolio projects to company work experience.
+  - CRITICAL: Always include phone number in cover letter closing signature.
+  - Avoid uncertain language like "motivates my transition" - use confident, direct language.
   - Use **bold** only for a single key metric per paragraph — never bold adjectives or company names.
   - The Re: line (item 3) is plain text — no bold.
   - Metrics must be consistent — if source has 90%, use 90% everywhere, never mix with 80%.

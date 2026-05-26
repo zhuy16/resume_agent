@@ -6,3 +6,17 @@ python-docx
 python-dotenv
 umap-learn
 plotly
+
+# API & Infrastructure (Phase 4-6)
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.5.0
+redis>=5.0.0
+celery>=5.3.0
+requests>=2.31.0
+
+# Dev tools
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+ruff>=0.1.0
+mypy>=1.7.0

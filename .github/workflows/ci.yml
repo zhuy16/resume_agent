@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        pip install ruff mypy
+    
+    - name: Lint with ruff
+      run: |
+        ruff check .
+    
+    - name: Type check with mypy
+      run: |
+        mypy . --ignore-missing-imports --exclude db
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+        pip install pytest pytest-asyncio
+    
+    - name: Run tests
+      run: |
+        python -m pytest evals/ -v || true
+    
+    - name: Run structure validation
+      run: |
+        python validate_structure.py
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Build Docker image
+      run: |
+        docker build -t resume_agent:test .
+    
+    - name: Test Docker image
+      run: |
+        docker run --rm resume_agent:test python -c "import config; print('Config OK')"

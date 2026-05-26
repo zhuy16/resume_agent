@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: resume_agent
+    ports:
+      - "8000:8000"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - JSON_LOGS=${JSON_LOGS:-false}
+    volumes:
+      - ./db:/app/db
+      - ./logs:/app/logs
+      - ./data/resume:/app/data/resume
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+
+  # Optional: Redis for job queue (Phase 6)
+  redis:
+    image: redis:7-alpine
+    container_name: resume_agent_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  # Optional: Worker for background jobs (Phase 6)
+  worker:
+    build: .
+    container_name: resume_agent_worker
+    command: celery -A api.tasks worker --loglevel=info
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - ./db:/app/db
+      - ./logs:/app/logs
+      - ./data/resume:/app/data/resume
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+volumes:
+  redis_data:

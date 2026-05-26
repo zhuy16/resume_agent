@@ -2,8 +2,10 @@
 Source resume selection service with quality control and fallback logic.
 """
 
+import os
 from dataclasses import dataclass
 from typing import List, Dict, Any, Tuple
+import config
 from utils.text_extraction import extract_structured_paragraphs
 
 
@@ -136,8 +138,21 @@ class SourceSelector:
                 continue
         
         if not resume_path:
+            # Try to use fallback resume as last resort
+            fallback_path = self._find_source_resume("fallback", os.path.join(config.FALLBACK_RESUME_DIR, "placeholder"))
+            if fallback_path:
+                if verbose:
+                    print(f"  [tailor] Using fallback resume: {fallback_path}")
+                try:
+                    source_paragraphs = extract_structured_paragraphs(fallback_path)
+                    from services.source_selection import QualityResult
+                    qc_result = QualityResult(score=0.5, passes_qc=True, issues=["Using fallback resume"])
+                    return fallback_path, source_paragraphs, qc_result
+                except Exception:
+                    pass
+            
             raise FileNotFoundError(
-                f"No source resume found in any of the top {len(metadatas)} matched jobs."
+                f"No source resume found in any of the top {len(metadatas)} matched jobs, and no fallback available."
             )
         
         return resume_path, source_paragraphs, qc_result

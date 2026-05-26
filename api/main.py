@@ -6,11 +6,15 @@ Provides REST endpoints for job processing with human-in-the-loop workflow.
 import os
 import uuid
 from datetime import datetime
+from pathlib import Path
 from typing import Dict, Optional
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel, Field
+import shutil
+import tempfile
 
 from core.logging_config import setup_logging
 from agents.orchestrator import ResumeOrchestrator, WorkflowState
@@ -218,6 +222,225 @@ async def list_jobs(limit: int = 10, status: Optional[str] = None):
         "total": len(jobs),
         "filtered": len(job_list),
     }
+
+
+@app.post("/upload-and-generate")
+async def upload_and_generate(
+    file: UploadFile = File(..., description="Job description PDF"),
+    company_name: str = "Company",
+    auto_approve: bool = True,
+):
+    """
+    Upload a JD PDF and immediately generate resume + cover letter.
+    
+    - Upload PDF
+    - System processes it
+    - Returns download links for generated files
+    """
+    import config
+    from utils.text_extraction import extract_text
+    from agents.tailor_agent import TailorAgent
+    from agents.validator_agent import ValidatorAgent
+    from agents.formatter_agent import FormatterAgent
+    import asyncio
+    
+    try:
+        # Create temporary folder
+        timestamp = datetime.now().strftime("%y%m%d%H%M%S")
+        job_folder = f"{timestamp}_{company_name}"
+        temp_dir = Path(tempfile.gettempdir()) / job_folder
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Save uploaded file
+        jd_path = temp_dir / file.filename
+        with open(jd_path, "wb") as f:
+            shutil.copyfileobj(file.file, f)
+        
+        # Extract text
+        jd_text = extract_text(str(jd_path))
+        
+        # Create output folder
+        output_dir = Path(config.RESUME_ROOT) / job_folder
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Copy JD to output folder for reference
+        shutil.copy(jd_path, output_dir / file.filename)
+        
+        # Initialize agents
+        tailor = TailorAgent()
+        validator = ValidatorAgent()
+        formatter = FormatterAgent()
+        
+        # Run synchronous code in thread pool to not block
+        loop = asyncio.get_event_loop()
+        
+        # Find similar jobs and generate
+        result = await loop.run_in_executor(None, tailor.run, str(jd_path))
+        
+        # Validate
+        validation = await loop.run_in_executor(
+            None, 
+            validator.validate,
+            result["resume_paragraphs"],
+            result["source_paragraphs"],
+            result.get("portfolio_patch", ""),
+        )
+        
+        # Format and save
+        resume_path = await loop.run_in_executor(
+            None,
+            formatter.format_resume,
+            result["resume_paragraphs"],
+            output_dir / f"ZhuYunhua_{company_name}_resume.docx",
+            validation.violations if validation else [],
+        )
+        
+        cover_path = await loop.run_in_executor(
+            None,
+            formatter.format_cover,
+            result["cover_paragraphs"],
+            output_dir / f"ZhuYunhua_{company_name}_cover.docx",
+        )
+        
+        # Prepare metadata
+        metadata = {
+            "job_folder": job_folder,
+            "company": company_name,
+            "jd_filename": file.filename,
+            "jd_length": len(jd_text),
+            "similar_jobs": result.get("similar_jobs", []),
+            "source_resume": result.get("source_resume", "unknown"),
+            "validation_violations": len(validation.violations) if validation else 0,
+            "resume_paragraphs": len(result["resume_paragraphs"]),
+            "cover_paragraphs": len(result["cover_paragraphs"]),
+            "generated_at": datetime.utcnow().isoformat(),
+            "output_files": {
+                "resume": str(resume_path),
+                "cover": str(cover_path),
+            },
+        }
+        
+        return {
+            "success": True,
+            "job_folder": job_folder,
+            "company": company_name,
+            "download_urls": {
+                "resume": f"/download/{job_folder}/resume",
+                "cover": f"/download/{job_folder}/cover",
+            },
+            "metadata": metadata,
+            "violations": validation.violations if validation else [],
+        }
+        
+    except Exception as e:
+        logger.error(f"Error processing upload: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/download/{job_folder}/{file_type}")
+async def download_file(job_folder: str, file_type: str):
+    """Download generated resume or cover letter."""
+    import config
+    
+    output_dir = Path(config.RESUME_ROOT) / job_folder
+    
+    # Extract company name from folder
+    company = job_folder.split("_")[-1] if "_" in job_folder else "Company"
+    
+    if file_type == "resume":
+        file_path = output_dir / f"ZhuYunhua_{company}_resume.docx"
+        filename = f"{company}_resume.docx"
+    elif file_type == "cover":
+        file_path = output_dir / f"ZhuYunhua_{company}_cover.docx"
+        filename = f"{company}_cover.docx"
+    else:
+        raise HTTPException(status_code=400, detail="Invalid file_type. Use 'resume' or 'cover'")
+    
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail=f"File not found: {file_path}")
+    
+    return FileResponse(
+        path=str(file_path),
+        filename=filename,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    )
+
+
+@app.get("/", response_class=HTMLResponse)
+async def root():
+    """Simple HTML interface for file upload."""
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Resume Agent</title>
+        <style>
+            body { font-family: sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+            h1 { color: #1A3A5C; }
+            .upload-box { border: 2px dashed #ccc; padding: 40px; text-align: center; border-radius: 8px; }
+            input[type="file"] { margin: 20px 0; }
+            button { background: #1A3A5C; color: white; padding: 12px 24px; border: none; border-radius: 4px; cursor: pointer; }
+            button:hover { background: #2d5a8f; }
+            .result { margin-top: 20px; padding: 20px; background: #f0f0f0; border-radius: 4px; display: none; }
+        </style>
+    </head>
+    <body>
+        <h1>📄 Resume Agent</h1>
+        <p>Upload a job description PDF to generate a tailored resume and cover letter.</p>
+        
+        <div class="upload-box">
+            <form id="uploadForm" enctype="multipart/form-data">
+                <input type="file" name="file" accept=".pdf" required><br>
+                <input type="text" name="company_name" placeholder="Company Name" required><br><br>
+                <button type="submit">Generate Resume & Cover Letter</button>
+            </form>
+        </div>
+        
+        <div id="result" class="result"></div>
+        
+        <script>
+            document.getElementById('uploadForm').onsubmit = async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                
+                document.getElementById('result').style.display = 'block';
+                document.getElementById('result').innerHTML = '⏳ Processing... This may take 30-60 seconds.';
+                
+                try {
+                    const response = await fetch('/upload-and-generate', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        let html = `<h3>✅ Generated Successfully!</h3>`;
+                        html += `<p><strong>Company:</strong> ${data.company}</p>`;
+                        html += `<p><strong>JD Length:</strong> ${data.metadata.jd_length} chars</p>`;
+                        html += `<p><strong>Resume Paragraphs:</strong> ${data.metadata.resume_paragraphs}</p>`;
+                        html += `<p><strong>Cover Paragraphs:</strong> ${data.metadata.cover_paragraphs}</p>`;
+                        
+                        if (data.violations.length > 0) {
+                            html += `<p style="color: orange;">⚠️ ${data.violations.length} validation warnings</p>`;
+                        }
+                        
+                        html += `<h4>Download:</h4>`;
+                        html += `<a href="${data.download_urls.resume}" download><button>📄 Download Resume</button></a> `;
+                        html += `<a href="${data.download_urls.cover}" download><button>📝 Download Cover Letter</button></a>`;
+                        
+                        document.getElementById('result').innerHTML = html;
+                    } else {
+                        document.getElementById('result').innerHTML = `<p style="color: red;">❌ Error: ${data.error}</p>`;
+                    }
+                } catch (error) {
+                    document.getElementById('result').innerHTML = `<p style="color: red;">❌ Error: ${error.message}</p>`;
+                }
+            };
+        </script>
+    </body>
+    </html>
+    """
 
 
 async def process_job(job_id: str, auto_approve: bool):

@@ -284,10 +284,9 @@ async def upload_and_generate(
         # Validate
         validation = await loop.run_in_executor(
             None, 
-            validator.validate,
+            validator.run,
             result["resume_paragraphs"],
-            result["source_paragraphs"],
-            result.get("portfolio_patch", ""),
+            result["cover_paragraphs"],
         )
         
         # Format and save

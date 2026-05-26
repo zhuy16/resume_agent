@@ -1,0 +1,26 @@
+{
+  "job_description": "Principal Scientist, Computational Biologist at Immunai",
+  "job_key_points": [
+    "Immune profiling and single-cell genomics",
+    "MCP servers and agentic AI workflows",
+    "Spatial transcriptomics",
+    "TIL exhaustion scoring and clonotype analysis"
+  ],
+  "expected_resume_structure": {
+    "sections": ["name", "summary", "skills", "experience", "portfolio", "education"],
+    "experience_bullets_per_role": 6,
+    "skills_categories": 4
+  },
+  "expected_cover_structure": {
+    "paragraphs": 14,
+    "bullets": 4,
+    "has_company_specific_hook": true,
+    "has_phone_number": true
+  },
+  "success_criteria": {
+    "no_portfolio_in_experience": true,
+    "accurate_titles": true,
+    "specific_immune_profiling_mentions": true,
+    "mcp_server_highlighted": true
+  }
+}

@@ -53,16 +53,81 @@ The previous `job_rag` project established a RAG pipeline that embedded past job
 
 ---
 
+## Modern Multi-Agent Architecture (May 2025)
+
+### 🏗️ Three-Phase Refactoring
+
+The system has been restructured into a production-grade multi-agent architecture with clear separation of concerns, evaluation frameworks, and human oversight.
+
+#### **Phase 1: Separation of Concerns**
+- **`prompts/`**: Markdown prompts versioned independently from code
+  - `resume_system.md` - 80-line resume generation guidelines
+  - `cover_system.md` - 75-line cover letter structure rules
+- **`schemas/`**: Centralized schema definitions
+  - `paragraph.py` - Shared paragraph schema + validation
+  - `resume_schema.py` - RESUME_TOOL for Claude
+  - `cover_schema.py` - COVER_TOOL + structure constants
+- **`services/`**: Business logic extracted from monolithic agent
+  - `retrieval.py` - ChromaDB query operations
+  - `source_selection.py` - QC + fallback logic with `QualityResult` dataclass
+  - `llm_client.py` - Claude wrapper with `TracedLLMClient` for observability
+
+#### **Phase 2: Multi-Agent Expansion**
+- **`agents/reviewer_agent.py`** - Style + role-fit critique
+  - Returns structured `ReviewResult` with scores (0-100) and recommendations
+  - Evaluates job fit, style quality, and factual accuracy
+  - Heuristic fallback when LLM unavailable
+- **`evals/`** - Comprehensive test framework
+  - `test_hallucination.py` - 4 tests for factual accuracy
+  - `test_structure.py` - 8 tests for resume/cover letter structure
+  - `runner.py` - Test execution with quality reports
+  - `golden_examples/` - Success criteria templates
+
+#### **Phase 3: Human-in-the-Loop & Stateful Workflow**
+- **`agents/orchestrator.py`** - `ResumeOrchestrator` with explicit state management
+  - 12 workflow states: `IDLE` → `RETRIEVING` → `SELECTING_SOURCE` → `GENERATING_RESUME` → `REVIEWING_RESUME` → `AWAITING_RESUME_APPROVAL` → `GENERATING_COVER` → `REVIEWING_COVER` → `AWAITING_COVER_APPROVAL` → `VALIDATING` → `COMPLETED`/`REJECTED`
+  - State transition callbacks for observability
+  - `WorkflowContext` dataclass tracks all artifacts through pipeline
+- **`interactive.py`** - CLI with human approval checkpoints
+  - Interactive resume/cover letter review with AI scores
+  - Content preview before approval
+  - Auto-approve mode for batch processing (`--auto` flag)
+
+### 📊 Architecture Comparison
+
+| Aspect | Before | After (3 Phases) |
+|--------|--------|------------------|
+| **Agents** | 5 (classifier, ingest, tailor, validator, formatter) | 7 (+ orchestrator, reviewer) |
+| **Code Organization** | Monolithic `tailor_agent.py` (~500 lines) | Separated prompts/schemas/services |
+| **Testing** | None | 12 evaluation tests + golden examples |
+| **Human Oversight** | None | Interactive approval checkpoints |
+| **Observability** | Print statements | `TracedLLMClient` with execution traces |
+| **State Management** | Implicit | Explicit 12-state workflow |
+
+---
+
 ## Project structure
 
 ```
 resume_agent/
   tailor.py                   ← main CLI — tailor resume + cover letter
+  interactive.py              ← NEW: human-in-the-loop workflow CLI
   viz.py                      ← standalone embedding map CLI
   config.py                   ← paths, model names, DOCX style constants
   requirements.txt
   .env                        ← ANTHROPIC_API_KEY (never commit)
   db/                         ← ChromaDB vector store (259 JDs, never commit)
+  prompts/                    ← NEW: versioned prompts (Phase 1)
+    resume_system.md          ← 80-line resume generation guidelines
+    cover_system.md           ← 75-line cover letter structure rules
+  schemas/                    ← NEW: centralized schemas (Phase 1)
+    paragraph.py              ← shared paragraph schema + validation
+    resume_schema.py          ← RESUME_TOOL for Claude
+    cover_schema.py           ← COVER_TOOL + structure constants
+  services/                   ← NEW: business logic (Phase 1)
+    retrieval.py              ← ChromaDB query operations
+    source_selection.py       ← QC + fallback logic
+    llm_client.py             ← Claude wrapper + TracedLLMClient
   agents/
     file_classifier.py        ← detect JD / resume / cover letter in any folder
     ingest_agent.py           ← embed new JD into ChromaDB; bulk re-ingest by date
@@ -70,6 +135,13 @@ resume_agent/
     validator_agent.py        ← Claude Haiku claim cross-check vs source resume
     formatter_agent.py        ← render paragraph list → styled DOCX
     viz_agent.py              ← UMAP 2D map + TF-IDF axis words + final-round stars
+    reviewer_agent.py         ← NEW: style + role-fit critique (Phase 2)
+    orchestrator.py           ← NEW: stateful workflow with human checkpoints (Phase 3)
+  evals/                      ← NEW: test framework (Phase 2)
+    test_hallucination.py     ← 4 tests for factual accuracy
+    test_structure.py         ← 8 tests for resume/cover structure
+    runner.py                 ← test execution + quality reports
+    golden_examples/          ← success criteria templates
   utils/
     text_extraction.py        ← PDF + DOCX text extraction
     docx_utils.py             ← DOCX style definitions + right-tab date alignment
@@ -137,6 +209,37 @@ python tailor.py --reingest-from YYMMDD
 - `ZhuYunhua_{Company}_resume.docx` (e.g., `ZhuYunhua_AbbVie_resume.docx`)
 - `ZhuYunhua_{Company}_cover.docx` (e.g., `ZhuYunhua_AbbVie_cover.docx`)
 - Validator violations appended on separate page if any are found
+
+### `interactive.py` — human-in-the-loop workflow (NEW)
+
+```bash
+python interactive.py --folder FOLDER [--auto] [--save]
+```
+
+| Flag | Default | Description |
+|---|---|---|
+| `--folder` / `-f` | — | Folder name (e.g. `260512_NewCompany`) |
+| `--auto` / `-a` | off | Auto-approve all checkpoints (skip human review) |
+| `--save` / `-s` | on | Save output DOCX files after approval |
+
+**Workflow with human checkpoints:**
+```
+[1/9] RETRIEVING              → Query ChromaDB for similar past jobs
+[2/9] SELECTING_SOURCE        → QC check + fallback if needed
+[3/9] GENERATING_RESUME       → Claude Sonnet resume generation
+[4/9] REVIEWING_RESUME        → AI critique (scores + recommendations)
+[5/9] AWAITING_RESUME_APPROVAL → ⏸️ Human review & approval
+[6/9] GENERATING_COVER        → Claude Sonnet cover letter generation
+[7/9] REVIEWING_COVER         → AI critique
+[8/9] AWAITING_COVER_APPROVAL → ⏸️ Human review & approval
+[9/9] VALIDATING              → Final fact-check vs source resume
+```
+
+**Interactive approval** shows:
+- Source resume quality score
+- AI review scores (overall, style, fit)
+- Content preview
+- Yes/No approval prompt
 
 ### `viz.py` — embedding map
 

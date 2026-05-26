@@ -1,5 +1,53 @@
 # CHANGELOG
 
+## [May 25, 2025] - Three-Phase Multi-Agent Architecture Refactoring
+
+### 🏗️ Phase 1: Separation of Concerns
+- **`prompts/`**: Extracted system prompts to versioned markdown files
+  - `resume_system.md` - 80-line resume generation guidelines with all constraints
+  - `cover_system.md` - 75-line cover letter structure with format rules
+  - Independent versioning for A/B testing prompt variations
+- **`schemas/`**: Centralized schema definitions for structured LLM output
+  - `paragraph.py` - Shared paragraph schema with validation functions
+  - `resume_schema.py` - RESUME_TOOL definition for Claude tool-use
+  - `cover_schema.py` - COVER_TOOL with structure constants
+- **`services/`**: Extracted business logic from monolithic `tailor_agent.py`
+  - `retrieval.py` - ChromaDB query operations as service class
+  - `source_selection.py` - QC + fallback logic with `QualityResult` dataclass
+  - `llm_client.py` - Claude wrapper with `TracedLLMClient` for execution tracing
+
+### 🤖 Phase 2: Multi-Agent Expansion
+- **`agents/reviewer_agent.py`** - New style + role-fit critique agent
+  - `ReviewResult` dataclass with structured scores (0-100) and recommendations
+  - Evaluates job fit (40%), style quality (30%), factual accuracy (30%)
+  - Heuristic fallback when LLM unavailable
+- **`evals/`** - Comprehensive test framework
+  - `test_hallucination.py` - 4 tests: fabricated companies, inflated titles, invented metrics, portfolio attribution
+  - `test_structure.py` - 8 tests: resume sections, cover letter format, required elements
+  - `runner.py` - Test execution with quality reports
+  - `golden_examples/` - Success criteria templates (e.g., Immunai example)
+
+### 👤 Phase 3: Human-in-the-Loop & Stateful Workflow
+- **`agents/orchestrator.py`** - `ResumeOrchestrator` with explicit state machine
+  - 12 workflow states: `IDLE` → `RETRIEVING` → `SELECTING_SOURCE` → `GENERATING_RESUME` → `REVIEWING_RESUME` → `AWAITING_RESUME_APPROVAL` → `GENERATING_COVER` → `REVIEWING_COVER` → `AWAITING_COVER_APPROVAL` → `VALIDATING` → `COMPLETED`/`REJECTED`
+  - `WorkflowContext` dataclass tracks all artifacts through pipeline
+  - State transition callbacks for observability and debugging
+  - Human approval checkpoints with rejection handling
+- **`interactive.py`** - New CLI with human oversight
+  - Interactive resume review with AI scores and content preview
+  - Cover letter approval with structured feedback display
+  - Auto-approve mode (`--auto` flag) for batch processing
+  - Real-time state transition display
+
+### 📊 Impact Metrics
+- **Code Organization**: 1 monolithic file (~500 lines) → 12 focused modules
+- **Test Coverage**: 0 tests → 12 evaluation tests (8 passing without external deps)
+- **Human Oversight**: None → 2 approval checkpoints (resume + cover letter)
+- **Observability**: Print statements → Execution traces in `evals/traces/`
+- **State Management**: Implicit → Explicit 12-state workflow with callbacks
+
+---
+
 ## [May 13, 2025] - Quality Control & Source Resume Validation
 
 ### ✨ Critical Improvements

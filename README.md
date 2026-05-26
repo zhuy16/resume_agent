@@ -197,6 +197,79 @@ To add a new final-round job to the map, append to `FINAL_ROUND_SUBSTRINGS` in `
 
 ---
 
+## Docker Usage
+
+Run the entire system with Docker Compose (includes Redis for job queue):
+
+```bash
+# Start all services
+docker-compose up -d
+
+# Check health
+curl http://localhost:8000/health
+
+# View logs
+docker-compose logs -f app
+
+# Stop services
+docker-compose down
+```
+
+**Services**:
+- `app`: FastAPI server on port 8000
+- `redis`: Job queue backend on port 6379
+- `worker`: Background job processor (optional)
+
+---
+
+## API Usage
+
+The FastAPI server provides REST endpoints for programmatic access:
+
+### Start API Server
+
+```bash
+# Local development
+uvicorn api.main:app --reload --port 8000
+
+# Or with Docker
+docker-compose up -d app
+```
+
+### API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | Health check |
+| `/ready` | GET | Readiness check (DB connection) |
+| `/jobs` | POST | Create new resume generation job |
+| `/jobs` | GET | List recent jobs |
+| `/jobs/{id}/status` | GET | Get job status and progress |
+| `/jobs/{id}/approve/{checkpoint}` | POST | Approve human checkpoint |
+
+### Example API Calls
+
+```bash
+# Create a job
+curl -X POST http://localhost:8000/jobs \
+  -H "Content-Type: application/json" \
+  -d '{"job_folder": "260512_NewCompany", "auto_approve": false}'
+
+# Check job status (replace JOB_ID with actual UUID)
+curl http://localhost:8000/jobs/JOB_ID/status
+
+# Approve resume checkpoint
+curl -X POST http://localhost:8000/jobs/JOB_ID/approve/resume \
+  -H "Content-Type: application/json" \
+  -d '{"approved": true, "feedback": "Looks good"}'
+```
+
+### Interactive API Docs
+
+Open http://localhost:8000/docs for Swagger UI with try-it-out functionality.
+
+---
+
 ## Agent descriptions
 
 ### `FileClassifier`

@@ -287,20 +287,17 @@ async def upload_and_generate(
         )
         
         # Format and save
-        resume_path = await loop.run_in_executor(
+        format_result = await loop.run_in_executor(
             None,
-            formatter.format_resume,
+            formatter.run,
+            str(output_dir),
             result["resume_paragraphs"],
-            output_dir / f"ZhuYunhua_{company_name}_resume.docx",
+            result["cover_paragraphs"],
             validation.violations if validation else [],
         )
         
-        cover_path = await loop.run_in_executor(
-            None,
-            formatter.format_cover,
-            result["cover_paragraphs"],
-            output_dir / f"ZhuYunhua_{company_name}_cover.docx",
-        )
+        resume_path = format_result["resume_path"]
+        cover_path = format_result["cover_path"]
         
         # Prepare metadata
         metadata = {

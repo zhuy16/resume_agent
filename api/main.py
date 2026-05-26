@@ -282,11 +282,13 @@ async def upload_and_generate(
         result = await loop.run_in_executor(None, tailor.run, str(jd_path))
         
         # Validate
+        source_text = "\n".join(p["text"] for p in result.get("source_paragraphs", []))
         validation = await loop.run_in_executor(
             None, 
             validator.run,
             result["resume_paragraphs"],
             result["cover_paragraphs"],
+            source_text,
         )
         
         # Format and save

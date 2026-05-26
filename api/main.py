@@ -268,8 +268,8 @@ async def upload_and_generate(
         
         # Initialize ChromaDB and agents
         import chromadb
-        chroma_client = chromadb.PersistentClient(path=config.VECTOR_DB_PATH)
-        collection = chroma_client.get_or_create_collection("job_descriptions")
+        chroma_client = chromadb.PersistentClient(path=config.DB_PATH)
+        collection = chroma_client.get_or_create_collection(config.DB_COLLECTION)
         
         tailor = TailorAgent(collection)
         validator = ValidatorAgent()

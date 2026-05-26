@@ -266,8 +266,12 @@ async def upload_and_generate(
         # Copy JD to output folder for reference
         shutil.copy(jd_path, output_dir / file.filename)
         
-        # Initialize agents
-        tailor = TailorAgent()
+        # Initialize ChromaDB and agents
+        import chromadb
+        chroma_client = chromadb.PersistentClient(path=config.VECTOR_DB_PATH)
+        collection = chroma_client.get_or_create_collection("job_descriptions")
+        
+        tailor = TailorAgent(collection)
         validator = ValidatorAgent()
         formatter = FormatterAgent()
         
@@ -409,6 +413,19 @@ async def root():
                         body: formData
                     });
                     
+                    // Check if response is OK
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        let errorMsg = errorText;
+                        try {
+                            const errorData = JSON.parse(errorText);
+                            errorMsg = errorData.detail || errorData.message || errorText;
+                        } catch (e) {
+                            // Not JSON, use text as is
+                        }
+                        throw new Error(`Server error (${response.status}): ${errorMsg}`);
+                    }
+                    
                     const data = await response.json();
                     
                     if (data.success) {
@@ -418,7 +435,7 @@ async def root():
                         html += `<p><strong>Resume Paragraphs:</strong> ${data.metadata.resume_paragraphs}</p>`;
                         html += `<p><strong>Cover Paragraphs:</strong> ${data.metadata.cover_paragraphs}</p>`;
                         
-                        if (data.violations.length > 0) {
+                        if (data.violations && data.violations.length > 0) {
                             html += `<p style="color: orange;">⚠️ ${data.violations.length} validation warnings</p>`;
                         }
                         
@@ -428,9 +445,10 @@ async def root():
                         
                         document.getElementById('result').innerHTML = html;
                     } else {
-                        document.getElementById('result').innerHTML = `<p style="color: red;">❌ Error: ${data.error}</p>`;
+                        document.getElementById('result').innerHTML = `<p style="color: red;">❌ Error: ${data.error || 'Unknown error'}</p>`;
                     }
                 } catch (error) {
+                    console.error('Full error:', error);
                     document.getElementById('result').innerHTML = `<p style="color: red;">❌ Error: ${error.message}</p>`;
                 }
             };

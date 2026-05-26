@@ -1,108 +1,71 @@
 # resume_agent
 
-Multi-agent resume tailoring system — successor to `job_rag`.
+**AI-powered resume and cover letter generator** with retrieval augmentation, fact-checking, and human-in-the-loop approval.
 
-## Background
-
-The previous `job_rag` project established a RAG pipeline that embedded past job descriptions into ChromaDB, retrieved the most similar past application for a new role, and used Claude to rewrite a resume. It worked but had four pain points:
-
-1. **Static DB** — required a manual `build_db.py` run whenever new jobs were added
-2. **Formatting drift** — generated DOCX used wrong style names (`Heading 1` vs the actual `Normal` + `List Paragraph` used in real submitted resumes)
-3. **No fact-checking** — single LLM pass with prompt-only hallucination guard
-4. **Manual JD copy** — had to copy the JD PDF into a `new_jobs/` staging folder before running
-
-`resume_agent` fixes all four and adds cover letter generation, validation, and an interactive embedding visualizer.
+Given a job description PDF, the system retrieves the most similar past application from a vector database, uses Claude to rewrite the resume/cover letter for the new role, validates all claims against the source, and generates properly formatted DOCX files matching the style of real submitted resumes.
 
 ---
 
-## Recent Updates (May 2025)
+## What It Does
 
-### ✅ Major Improvements
-- **Quality Control System**: Comprehensive source resume validation with smart fallback to better matches
-- **Enhanced Validation**: Added `ValidatorAgent` using Claude Haiku to cross-check all claims against source resume
-- **Customer Support Detection**: Automatic role detection for support/training positions with tailored content
-- **Portfolio Patch Integration**: Automatically enriches portfolio section from fallback resume when missing
-- **Consistent Formatting**: Fixed bullet styles, date formats, and company naming conventions
-- **Smart File Classification**: Improved detection of JD vs resume files with special case handling
-- **Output Naming**: Files now use `ZhuYunhua_{Company}_resume.docx` format for better organization
-
-### 🔧 Bug Fixes
-- **BioNTech End Date**: Fixed "Present" → "09/2025" across all source resumes and prompts
-- **Experience Years**: Enforced "10+ years" consistently (no "12 years" variations)
-- **GSK Community of Practice**: Corrected "founded" → "initiated and led"
-- **Cover Letter Bullets**: Restored bullets for scanning while maintaining rich prose
-- **JSON Parsing**: Added guard for Claude API returning string instead of dict
-- **Portfolio Dashes**: Stripped leading dashes to ensure consistent bullet formatting
-
-### 🚀 New Features
-- **Quality Control System**: Source resume validation with scoring and automatic fallback
-- **Customer Support Role Detection**: Automatic identification and tailoring for support positions
-- **Enhanced Cover Letters**: Role-specific generation with training emphasis
-- **Embedding Visualization**: Interactive UMAP map with domain/outcome coloring and final-round stars
-- **Supplemental Facts**: Pass portfolio patch content to validator to reduce false positives
-- **Page Break Handling**: Validator warnings moved to separate page to avoid formatting issues
-- **Progress Indicators**: Added console feedback for PDF processing and API calls
-
-### 🛡️ Quality Control System
-- **Source Validation**: Checks minimum content length, proper sections (name, headers, bullets)
-- **Job Description Detection**: Prevents using JD files as source material
-- **Smart Fallback**: Tries 2nd/3rd best matches when primary fails QC
-- **Placeholder Prevention**: Eliminates `<UNKNOWN>` placeholders through quality validation
-- **Error Handling**: Graceful handling of missing directories and inaccessible files
-- **QC Reporting**: Detailed feedback with scores and specific issue identification
+1. **Semantic Search** — Find the best matching past resume using ChromaDB + sentence embeddings
+2. **AI Generation** — Claude rewrites resume and cover letter tailored to the new job
+3. **Fact Validation** — Cross-checks every claim against source resume to prevent hallucinations
+4. **Human Review** — Interactive approval checkpoints before finalizing (optional)
+5. **DOCX Output** — Formatted matching real resume styles (custom bullets, right-aligned dates)
 
 ---
 
-## Modern Multi-Agent Architecture (May 2025)
+## Quick Start
 
-### 🏗️ Three-Phase Refactoring
+```bash
+# Setup
+conda activate job-rag
+cp .env.example .env
+# Add ANTHROPIC_API_KEY to .env
+pip install -r requirements.txt
 
-The system has been restructured into a production-grade multi-agent architecture with clear separation of concerns, evaluation frameworks, and human oversight.
+# Generate resume + cover letter
+python tailor.py --folder 260512_NewCompany
 
-#### **Phase 1: Separation of Concerns**
-- **`prompts/`**: Markdown prompts versioned independently from code
-  - `resume_system.md` - 80-line resume generation guidelines
-  - `cover_system.md` - 75-line cover letter structure rules
-- **`schemas/`**: Centralized schema definitions
-  - `paragraph.py` - Shared paragraph schema + validation
-  - `resume_schema.py` - RESUME_TOOL for Claude
-  - `cover_schema.py` - COVER_TOOL + structure constants
-- **`services/`**: Business logic extracted from monolithic agent
-  - `retrieval.py` - ChromaDB query operations
-  - `source_selection.py` - QC + fallback logic with `QualityResult` dataclass
-  - `llm_client.py` - Claude wrapper with `TracedLLMClient` for observability
+# Interactive mode with human checkpoints
+python interactive.py --folder 260512_NewCompany
 
-#### **Phase 2: Multi-Agent Expansion**
-- **`agents/reviewer_agent.py`** - Style + role-fit critique
-  - Returns structured `ReviewResult` with scores (0-100) and recommendations
-  - Evaluates job fit, style quality, and factual accuracy
-  - Heuristic fallback when LLM unavailable
-- **`evals/`** - Comprehensive test framework
-  - `test_hallucination.py` - 4 tests for factual accuracy
-  - `test_structure.py` - 8 tests for resume/cover letter structure
-  - `runner.py` - Test execution with quality reports
-  - `golden_examples/` - Success criteria templates
+# Auto-approve mode (batch processing)
+python interactive.py --folder 260512_NewCompany --auto
 
-#### **Phase 3: Human-in-the-Loop & Stateful Workflow**
-- **`agents/orchestrator.py`** - `ResumeOrchestrator` with explicit state management
-  - 12 workflow states: `IDLE` → `RETRIEVING` → `SELECTING_SOURCE` → `GENERATING_RESUME` → `REVIEWING_RESUME` → `AWAITING_RESUME_APPROVAL` → `GENERATING_COVER` → `REVIEWING_COVER` → `AWAITING_COVER_APPROVAL` → `VALIDATING` → `COMPLETED`/`REJECTED`
-  - State transition callbacks for observability
-  - `WorkflowContext` dataclass tracks all artifacts through pipeline
-- **`interactive.py`** - CLI with human approval checkpoints
-  - Interactive resume/cover letter review with AI scores
-  - Content preview before approval
-  - Auto-approve mode for batch processing (`--auto` flag)
+# Generate embedding visualization
+python viz.py --highlight 260512_NewCompany
+```
 
-### 📊 Architecture Comparison
+**Output**: `ZhuYunhua_{Company}_resume.docx` and `ZhuYunhua_{Company}_cover.docx`
 
-| Aspect | Before | After (3 Phases) |
-|--------|--------|------------------|
-| **Agents** | 5 (classifier, ingest, tailor, validator, formatter) | 7 (+ orchestrator, reviewer) |
-| **Code Organization** | Monolithic `tailor_agent.py` (~500 lines) | Separated prompts/schemas/services |
-| **Testing** | None | 12 evaluation tests + golden examples |
-| **Human Oversight** | None | Interactive approval checkpoints |
-| **Observability** | Print statements | `TracedLLMClient` with execution traces |
-| **State Management** | Implicit | Explicit 12-state workflow |
+---
+
+## Architecture Overview
+
+**Multi-agent system** with 8 specialized agents:
+
+| Agent | Purpose |
+|-------|---------|
+| `FileClassifier` | Detects JD/resume/cover letter files |
+| `IngestAgent` | Embeds new JDs into ChromaDB |
+| `TailorAgent` | RAG query + Claude generation |
+| `ReviewerAgent` | Style and job-fit critique |
+| `ValidatorAgent` | Fact-checking vs source resume |
+| `FormatterAgent` | Renders DOCX with custom styles |
+| `Orchestrator` | Stateful workflow coordination |
+| `VizAgent` | Embedding visualization (UMAP) |
+
+**Key Design Decisions**:
+- **Prompts extracted** to markdown files (`prompts/`)
+- **Schemas centralized** for structured LLM output (`schemas/`)
+- **Services separated** for business logic (`services/`)
+- **Evaluation framework** with 12 tests (`evals/`)
+- **Human checkpoints** for approval (resume + cover)
+- **Execution tracing** for observability
+
+See [ARCHITECTURE_AUDIT.md](ARCHITECTURE_AUDIT.md) for detailed design docs.
 
 ---
 
@@ -151,35 +114,7 @@ resume_agent/
 
 ---
 
-## Setup
-
-```bash
-conda activate job-rag          # reuse existing environment
-
-cp .env.example .env
-# edit .env → ANTHROPIC_API_KEY=sk-ant-...
-
-pip install -r requirements.txt  # adds plotly, umap-learn if not present
-```
-
----
-
-## Quick start
-
-```bash
-# Tailor resume + cover letter for a new job
-python tailor.py --folder 260512_NewCompany
-
-# Same + generate embedding map showing where this job sits
-python tailor.py --folder 260512_NewCompany --viz
-
-# Just the map (no tailoring)
-python viz.py --highlight 260512_NewCompany
-```
-
----
-
-## All commands
+## CLI Reference
 
 ### `tailor.py` — resume + cover letter
 

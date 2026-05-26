@@ -292,13 +292,14 @@ async def upload_and_generate(
         )
         
         # Format and save
+        violations = validation.get("violations", []) if validation else []
         format_result = await loop.run_in_executor(
             None,
             formatter.run,
             str(output_dir),
             result["resume_paragraphs"],
             result["cover_paragraphs"],
-            validation.violations if validation else [],
+            violations,
         )
         
         resume_path = format_result["resume_path"]
@@ -312,7 +313,7 @@ async def upload_and_generate(
             "jd_length": len(jd_text),
             "similar_jobs": result.get("similar_jobs", []),
             "source_resume": result.get("source_resume", "unknown"),
-            "validation_violations": len(validation.violations) if validation else 0,
+            "validation_violations": len(validation.get("violations", [])) if validation else 0,
             "resume_paragraphs": len(result["resume_paragraphs"]),
             "cover_paragraphs": len(result["cover_paragraphs"]),
             "generated_at": datetime.utcnow().isoformat(),
@@ -331,7 +332,7 @@ async def upload_and_generate(
                 "cover": f"/download/{job_folder}/cover",
             },
             "metadata": metadata,
-            "violations": validation.violations if validation else [],
+            "violations": validation.get("violations", []) if validation else [],
         }
         
     except Exception as e:

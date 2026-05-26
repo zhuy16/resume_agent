@@ -139,7 +139,7 @@ class SourceSelector:
         
         if not resume_path:
             # Try to use fallback resume as last resort
-            fallback_path = self._find_source_resume("fallback", os.path.join(config.FALLBACK_RESUME_DIR, "placeholder"))
+            fallback_path = self._find_resume("fallback", os.path.join(config.FALLBACK_RESUME_DIR, "placeholder"))
             if fallback_path:
                 if verbose:
                     print(f"  [tailor] Using fallback resume: {fallback_path}")

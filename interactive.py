@@ -181,7 +181,7 @@ def main():
     import chromadb
     
     print("\n📡 Connecting to vector database...")
-    client = chromadb.PersistentClient(path=config.VECTOR_DB_PATH)
+    client = chromadb.PersistentClient(path=config.DB_PATH)
     collection = client.get_or_create_collection(name="job_descriptions")
     retrieval = RetrievalService(collection)
     

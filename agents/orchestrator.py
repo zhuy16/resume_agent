@@ -93,7 +93,7 @@ class ResumeOrchestrator:
         self._retrieval = retrieval_service
         self._llm = llm_client or TracedLLMClient(trace_dir=trace_dir) if enable_tracing else LLMClient()
         self._reviewer = ReviewerAgent(self._llm)
-        self._validator = ValidatorAgent(self._llm)
+        self._validator = ValidatorAgent()
         
         # State callbacks
         self._on_state_change: Optional[Callable[[WorkflowState, WorkflowState, WorkflowContext], None]] = None

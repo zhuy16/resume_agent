@@ -14,7 +14,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel, Field
 import shutil
-import tempfile
 
 from core.logging_config import setup_logging
 from agents.orchestrator import ResumeOrchestrator, WorkflowState
@@ -227,15 +226,16 @@ async def list_jobs(limit: int = 10, status: Optional[str] = None):
 @app.post("/upload-and-generate")
 async def upload_and_generate(
     file: UploadFile = File(..., description="Job description PDF"),
+    folder: str = "new_job",
     company_name: str = "Company",
     auto_approve: bool = True,
 ):
     """
-    Upload a JD PDF and immediately generate resume + cover letter.
+    Upload a JD PDF to an existing folder and generate resume + cover letter.
     
-    - Upload PDF
+    - Upload PDF to specified folder
     - System processes it
-    - Returns download links for generated files
+    - Saves resume/cover letter to SAME folder
     """
     import config
     from utils.text_extraction import extract_text
@@ -245,26 +245,17 @@ async def upload_and_generate(
     import asyncio
     
     try:
-        # Create temporary folder
-        timestamp = datetime.now().strftime("%y%m%d%H%M%S")
-        job_folder = f"{timestamp}_{company_name}"
-        temp_dir = Path(tempfile.gettempdir()) / job_folder
-        temp_dir.mkdir(parents=True, exist_ok=True)
+        # Use the existing folder
+        output_dir = Path(config.RESUME_ROOT) / folder
+        output_dir.mkdir(parents=True, exist_ok=True)
         
-        # Save uploaded file
-        jd_path = temp_dir / file.filename
+        # Save uploaded JD directly to the folder
+        jd_path = output_dir / file.filename
         with open(jd_path, "wb") as f:
             shutil.copyfileobj(file.file, f)
         
         # Extract text
         jd_text = extract_text(str(jd_path))
-        
-        # Create output folder
-        output_dir = Path(config.RESUME_ROOT) / job_folder
-        output_dir.mkdir(parents=True, exist_ok=True)
-        
-        # Copy JD to output folder for reference
-        shutil.copy(jd_path, output_dir / file.filename)
         
         # Initialize ChromaDB and agents
         import chromadb
@@ -307,7 +298,7 @@ async def upload_and_generate(
         
         # Prepare metadata
         metadata = {
-            "job_folder": job_folder,
+            "job_folder": folder,
             "company": company_name,
             "jd_filename": file.filename,
             "jd_length": len(jd_text),
@@ -325,11 +316,11 @@ async def upload_and_generate(
         
         return {
             "success": True,
-            "job_folder": job_folder,
+            "job_folder": folder,
             "company": company_name,
             "download_urls": {
-                "resume": f"/download/{job_folder}/resume",
-                "cover": f"/download/{job_folder}/cover",
+                "resume": f"/download/{folder}/resume",
+                "cover": f"/download/{folder}/cover",
             },
             "metadata": metadata,
             "violations": validation.get("violations", []) if validation else [],
@@ -394,6 +385,7 @@ async def root():
         <div class="upload-box">
             <form id="uploadForm" enctype="multipart/form-data">
                 <input type="file" name="file" accept=".pdf" required><br>
+                <input type="text" name="folder" placeholder="Folder (e.g., 260525_Bruker)" value="new_job"><br>
                 <input type="text" name="company_name" placeholder="Company Name" required><br><br>
                 <button type="submit">Generate Resume & Cover Letter</button>
             </form>

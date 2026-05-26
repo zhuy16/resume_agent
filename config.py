@@ -1,10 +1,12 @@
 """Paths and settings for resume_agent. Secrets from .env only."""
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
 load_dotenv()
 
 _PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = Path(_PROJECT_DIR)
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 RESUME_ROOT = os.path.abspath(os.path.join(_PROJECT_DIR, "..", "resume"))
